@@ -7,5 +7,5 @@ Currently includes test code for:
 3. ESP32 and MAX31855 thermocouple (serialthermocouple.ino)
 4. ESP32, TFT display, TFT touch, and 1-3 MAX31855 thermocouple sensor(s) utilizing FreeRTOS  (Display_Touch_and_sensor_using_FreeRTOS.ino)
 
-Also includes various supporting files such as
+Also includes various supporting files such as:
 I. Excel file for temperature fluctuation reduction formula used in the 3rd code test file
