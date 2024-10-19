@@ -8,4 +8,6 @@ Currently includes test code for:
 4. ESP32, TFT display, TFT touch, and 1-4 MAX31855 thermocouple sensor(s) utilizing FreeRTOS  (Display_Touch_and_sensor_using_FreeRTOS.ino)
 
 Also includes various supporting files such as:
-1. Excel file for temperature fluctuation reduction formula used in the 3rd code test file
+1. Excel file for temperature fluctuation reduction formula used in the 3rd code test file  (Temperature Fluctuation reduction.xlsx)
+2. Text file with all the library-defined font datums and colors (Display fonts and colors.txt)
+3. Correctly defined user setup header file for the TFT display library (User_Setup.h)
