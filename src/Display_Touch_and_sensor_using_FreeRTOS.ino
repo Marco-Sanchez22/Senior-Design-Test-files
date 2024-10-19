@@ -419,8 +419,8 @@ void get_sensor_data(void *pvParameter)
     
     Serial.println("-----------------");
     #if ENABLE_SENSOR_1
-      //cur_temp[SENSOR_1] = sensor1.readCelsius();
-      cur_temp[SENSOR_1] = sensor1.readInternal();    // for testing without probes
+      cur_temp[SENSOR_1] = sensor1.readCelsius();
+      //cur_temp[SENSOR_1] = sensor1.readInternal();    // for testing without probes
 
       // sensor 1 error detection
       if (isnan(cur_temp[SENSOR_1])) {
@@ -440,8 +440,8 @@ void get_sensor_data(void *pvParameter)
     #endif
 
     #if ENABLE_SENSOR_2
-      //cur_temp[SENSOR_2] = sensor2.readCelsius();
-      cur_temp[SENSOR_2] = sensor2.readInternal();    // for testing without probes
+      cur_temp[SENSOR_2] = sensor2.readCelsius();
+      //cur_temp[SENSOR_2] = sensor2.readInternal();    // for testing without probes
 
       // sensor 2 error detection
       if (isnan(cur_temp[SENSOR_2])) {
@@ -461,8 +461,8 @@ void get_sensor_data(void *pvParameter)
     #endif
 
     #if ENABLE_SENSOR_3
-      //cur_temp[SENSOR_3] = sensor3.readCelsius();
-      cur_temp[SENSOR_3] = sensor3.readInternal();    // for testing without probes
+      cur_temp[SENSOR_3] = sensor3.readCelsius();
+      //cur_temp[SENSOR_3] = sensor3.readInternal();    // for testing without probes
 
       // sensor 3 error detection
       if (isnan(cur_temp[SENSOR_3])) {
@@ -482,8 +482,8 @@ void get_sensor_data(void *pvParameter)
     #endif
 
     #if ENABLE_SENSOR_4
-      //cur_temp[SENSOR_4] = sensor4.readCelsius();
-      cur_temp[SENSOR_4] = sensor4.readInternal();    // for testing without probes
+      cur_temp[SENSOR_4] = sensor4.readCelsius();
+      //cur_temp[SENSOR_4] = sensor4.readInternal();    // for testing without probes
       
       // sensor 4 error detection
       if (isnan(cur_temp[SENSOR_4])) {
@@ -506,7 +506,7 @@ void get_sensor_data(void *pvParameter)
     vTaskDelay(1000 / portTICK_RATE_MS);  // read sensor data every 1 second
   }
 
-  vTaskDelete( NULL );  // protection incase it somehow exits the loop
+  vTaskDelete( NULL );  // protection in case it somehow exits the loop
 }
 
 void calculate_temp( int sensor, double cur_temp, double prev_temp )
