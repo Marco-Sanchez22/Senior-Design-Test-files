@@ -25,13 +25,20 @@ TFT_eSPI tft = TFT_eSPI();       // Invoke custom library
 SemaphoreHandle_t serial_write_lock = xSemaphoreCreateMutex();
 SemaphoreHandle_t temperature_write_read_lock = xSemaphoreCreateMutex();
 
+// define heater pin
+#define HEATER 13
+// boolian to turn heater on or off
+bool HEATER_ON = false;
+// double to store the set temperature
+double heater_desired_temp = 0.0;
+
 // define sensor GPIO pins
-#define MAXDO   13   // MISO
-#define MAXCLK  14  // CLK
-#define sensor1CS   12  // CS
-#define sensor2CS   27  // CS
-#define sensor3CS   25  // CS
-#define sensor4CS   33  // CS
+#define MAXDO   12   // MISO
+#define MAXCLK  27  // CLK
+#define sensor1CS   14  // CS
+#define sensor2CS   NULL  // CS
+#define sensor3CS   NULL  // CS
+#define sensor4CS   NULL  // CS
 
 // define sensor indexes
 #define SENSOR_1 0
@@ -40,7 +47,7 @@ SemaphoreHandle_t temperature_write_read_lock = xSemaphoreCreateMutex();
 #define SENSOR_4 3
 
 // turn sensors on or off
-#define ENABLE_SENSOR_1 false
+#define ENABLE_SENSOR_1 true
 #define ENABLE_SENSOR_2 false
 #define ENABLE_SENSOR_3 false
 #define ENABLE_SENSOR_4 false
@@ -69,7 +76,7 @@ double calc_temp[4] = { 25.0, 25.0, 25.0, 25.0 };
 
 // This is the file name used to store the touch coordinate
 // calibration data. Change the name to start a new calibration.
-#define CALIBRATION_FILE "/testCAL"
+#define CALIBRATION_FILE "/SD1DEMO"
 
 // Set REPEAT_CAL to true instead of false to run calibration
 // again, otherwise it will only be done once.
@@ -80,7 +87,7 @@ bool SwitchOn = false;
 
 // 1 = on/off button plus 1-4 sensors
 // 2 = manual bake mode (SD1 mini demo)
-int screen = 1;
+int screen = 2;
 
 // Comment out to stop drawing black spots
 //#define BLACK_SPOT
@@ -115,7 +122,7 @@ void setup(void)
   tft.init();
 
   // Set the rotation before we calibrate
-  tft.setRotation(1);
+  tft.setRotation(3);
 
   // call screen calibration
   touch_calibrate();
@@ -123,6 +130,9 @@ void setup(void)
   // EDITS below vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
   assert(serial_write_lock);
   assert(temperature_write_read_lock);
+
+  // define heater pin and set to output
+  pinMode(HEATER, OUTPUT);
 
   // Thermalcouple stuff
   #if ENABLE_SENSOR_1
@@ -177,20 +187,20 @@ void setup(void)
   #if ENABLE_SENSOR_1 || ENABLE_SENSOR_2 || ENABLE_SENSOR_3 || ENABLE_SENSOR_4
       xTaskCreate(&get_sensor_data, // Task address
       "Read_Sensor_Data", // task name
-      1000, // number of bytes to reserve for the task
+      3000, // number of bytes to reserve for the task
       NULL, // paramters passed to the task
       1, // priority of the task
       NULL); // handle to the task
   #endif
 
-  manual_bake_display();
+  //manual_bake_display();
 
-//   xTaskCreate(&GUI, // Task address
-//     "GUI", // task name
-//     1500, // number of bytes to reserve for the task
-//     NULL, // paramters passed to the task
-//     1, // priority of the task
-//     NULL); // handle to the task
+  xTaskCreate(&GUI, // Task address
+    "GUI", // task name
+    3000, // number of bytes to reserve for the task
+    NULL, // paramters passed to the task
+    1, // priority of the task
+    NULL); // handle to the task
 }
 //------------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------
@@ -445,6 +455,7 @@ void manual_bake_display()
   {
     
     uint16_t x, y;
+    double temp_temp = 25.0;
     
     // See if there's any touch data
     if (tft.getTouch(&x, &y))
@@ -515,18 +526,45 @@ void manual_bake_display()
       } else if ((x > 185) && (x <= (185 + 130))) {
         if ((y > 165) && (y <= (185 + 70))) {
           Serial.println("Start/Stop button");
+          if(HEATER_ON){
+            HEATER_ON = false;
+            tft.fillRect(185, 165, 130, 70, TFT_GREEN);
+            tft.setTextSize(3);
+            tft.drawString("Start", 250, 200);
+          } else {
+            heater_desired_temp = temperature;
+            HEATER_ON = true;
+            tft.fillRect(185, 165, 130, 70, TFT_RED);
+            tft.setTextSize(3);
+            tft.drawString("Stop", 250, 200);
+          }
           
         }
       }
       xSemaphoreGive(serial_write_lock); // release serial write lock
 
+      
+
       String counter_string = "";
       counter_string += temperature;
+      tft.setTextColor(TFT_BLACK);
       tft.setTextSize(3);
       tft.drawString(counter_string, 250, 55);
-
-      vTaskDelay(1000 / portTICK_RATE_MS);  // read every 1 second
+      
+      vTaskDelay(500 / portTICK_RATE_MS);  // read every 1 second
     }
+
+    if(calc_temp[SENSOR_1] != temp_temp){
+      tft.fillRect(220, 100, 80, 30, TFT_BLUE);
+      temp_temp = calc_temp[SENSOR_1];
+      String temp_string = "C = ";
+      temp_string += temp_temp;
+      tft.setTextColor(TFT_WHITE);
+      tft.setTextSize(2);
+      tft.drawString(temp_string, 235, 120);
+    }
+    
+    
   }
 }
 
@@ -620,6 +658,8 @@ void get_sensor_data(void *pvParameter)
 {
   double cur_temp[4] = { 25.0, 25.0, 25.0, 25.0 };
   double prev_temp[4] = { 25.0, 25.0, 25.0, 25.0 };
+  bool cooling_down = false;
+
   while(true)
   {
     xSemaphoreTake(serial_write_lock, portMAX_DELAY); // get serial write lock
@@ -638,7 +678,8 @@ void get_sensor_data(void *pvParameter)
         if (e & MAX31855_FAULT_SHORT_VCC) Serial.println("FAULT: sensor 1 is short-circuited to VCC.");
       } else {
         xSemaphoreTake(temperature_write_read_lock, portMAX_DELAY);
-        calculate_temp(SENSOR_1, cur_temp[SENSOR_1], prev_temp[SENSOR_1]);
+        //calculate_temp(SENSOR_1, cur_temp[SENSOR_1], prev_temp[SENSOR_1]);
+        calc_temp[SENSOR_1] = cur_temp[SENSOR_1];
         xSemaphoreGive(temperature_write_read_lock);
 
         // for serial monitoring
@@ -724,6 +765,32 @@ void get_sensor_data(void *pvParameter)
         Serial.println(calc_temp[SENSOR_4]);
       }
     #endif
+
+    
+    xSemaphoreTake(temperature_write_read_lock, portMAX_DELAY);
+    if(HEATER_ON) {
+        if(!cooling_down){
+          if(calc_temp[SENSOR_1] > (heater_desired_temp)){
+            digitalWrite(HEATER, LOW);
+            Serial.println("heater off");
+            cooling_down = true;
+          } else {
+            digitalWrite(HEATER, HIGH);
+            Serial.println("heater on");
+            cooling_down = false;
+          }
+        } else {
+          if (calc_temp[SENSOR_1] <= (heater_desired_temp - 5.0)){
+            digitalWrite(HEATER, HIGH);
+            Serial.println("heater on");
+            cooling_down = false;
+          }
+        }
+    } else {
+      digitalWrite(HEATER, LOW);
+    }
+
+    xSemaphoreGive(temperature_write_read_lock);
 
     xSemaphoreGive(serial_write_lock); // release serial write lock
     vTaskDelay(1000 / portTICK_RATE_MS);  // read sensor data every 1 second
